@@ -1,9 +1,10 @@
 import AddTodo from "./components/AddTodo";
 import FormItem from "./components/FormItem";
 import { useSelector } from "react-redux";
+import { RootState } from "./store/store";
 
 function App() {
- const todos = useSelector((state) => state.todos);
+ const todos = useSelector((state: RootState) => state.todos);
  return (
   <div className="container mx-auto flex justify-center items-center p-4">
    <div className="w-10/12 max-md:w-full">
