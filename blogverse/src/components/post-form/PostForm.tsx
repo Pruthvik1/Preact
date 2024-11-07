@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Button, Input, RTE, Select } from "..";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ interface Post {
  title: string;
  slug: string;
  content: string;
- status: string;
+ status: "active" | "inactive";
  featuredimg?: string;
 }
 
@@ -31,8 +31,8 @@ interface FormData {
 export default function PostForm({ post }: PostFormProps) {
  const { register, handleSubmit, watch, setValue, control, getValues } = useForm<FormData>({
   defaultValues: {
-   title: post?.title || "",
-   slug: post?.$id || "",
+   title: post?.title || "", // Ensure title is always a string
+   slug: post?.slug || "", // Ensure slug is always a string
    content: post?.content || "",
    status: post?.status || "active",
   },
@@ -42,32 +42,36 @@ export default function PostForm({ post }: PostFormProps) {
  const userData = useSelector((state: RootState) => state.auth.userData); // RootState is the root reducer type
 
  const submit: SubmitHandler<FormData> = async (data) => {
-  if (post) {
-   const file = data.image?.[0] ? await appwriteService.uploadFile(data.image[0]) : null;
+  let file;
+  if (data.image?.[0]) {
+   file = await appwriteService.uploadFile(data.image[0]);
+  }
 
-   if (file) {
-    appwriteService.deleteFile(post.featuredimg!); // Non-null assertion as featuredimg should be there
+  if (post) {
+   // Handle the case where post already exists
+   if (file && post.featuredimg) {
+    // Delete the old file if a new one is uploaded
+    appwriteService.deleteFile(post.featuredimg);
    }
 
-   const dbPost = await appwriteService.updatePost(post.$id, {
+   const updatedPost = await appwriteService.updatePost(post.$id, {
     ...data,
-    featuredimg: file ? file.$id : undefined,
+    featuredimg: file ? file.$id : post.featuredimg, // Keep existing file if no new file is uploaded
    });
 
-   if (dbPost) {
-    navigate(`/post/${dbPost.$id}`);
+   if (updatedPost) {
+    navigate(`/post/${updatedPost.$id}`);
    }
   } else {
-   const file = await appwriteService.uploadFile(data.image?.[0]);
+   // Handle post creation
+   const newPost = await appwriteService.createPost({
+    ...data,
+    featuredimg: file ? file.$id : undefined, // Only include featuredimg if a file was uploaded
+    userid: userData.$id,
+   });
 
-   if (file) {
-    const fileId = file.$id;
-    data.featuredimg = fileId;
-    const dbPost = await appwriteService.createPost({ ...data, userid: userData.$id });
-
-    if (dbPost) {
-     navigate(`/post/${dbPost.$id}`);
-    }
+   if (newPost) {
+    navigate(`/post/${newPost.$id}`);
    }
   }
  };
@@ -83,10 +87,10 @@ export default function PostForm({ post }: PostFormProps) {
   return "";
  }, []);
 
- React.useEffect(() => {
+ useEffect(() => {
   const subscription = watch((value, { name }) => {
    if (name === "title") {
-    setValue("slug", slugTransform(value.title), { shouldValidate: true });
+    setValue("slug", slugTransform(String(value.title)), { shouldValidate: true });
    }
   });
 

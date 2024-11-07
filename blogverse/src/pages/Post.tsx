@@ -5,31 +5,64 @@ import parse from "html-react-parser";
 import { useSelector } from "react-redux";
 import appwriteService from "../appwrite/auth/config";
 
+// Define types for the post and user data
+interface UserData {
+ $id: string;
+}
+
+interface Post {
+ $id: string;
+ title: string;
+ content: string;
+ featuredimg: string;
+ userid: string;
+}
+
 export default function Post() {
- const [post, setPost] = useState(null);
+ const [post, setPost] = useState<Post | null>(null);
  const { slug } = useParams();
  const navigate = useNavigate();
 
- const userData = useSelector((state) => state.auth.userData);
+ // Properly type the state in useSelector hook
+ const userData = useSelector((state: { auth: { userData: UserData | null } }) => state.auth.userData);
 
+ // Check if the current user is the author of the post
  const isAuthor = post && userData ? post.userid === userData.$id : false;
 
  useEffect(() => {
   if (slug) {
-   appwriteService.getPost(slug).then((post) => {
-    if (post) setPost(post);
-    else navigate("/");
+   // Get the post data from the appwriteService
+   appwriteService.getPost(slug).then((fetchedPost) => {
+    if (fetchedPost) {
+     // Map fetchedPost (PostDocument) to Post
+     const mappedPost: Post = {
+      $id: fetchedPost.$id,
+      title: fetchedPost.title,
+      content: fetchedPost.content,
+      featuredimg: fetchedPost.featuredimg,
+      userid: fetchedPost.userid,
+     };
+     setPost(mappedPost);
+    } else {
+     navigate("/"); // Navigate to homepage if no post found
+    }
    });
-  } else navigate("/");
+  } else {
+   navigate("/"); // Navigate to homepage if no slug is provided
+  }
  }, [slug, navigate]);
 
+ // Delete the post
  const deletePost = () => {
-  appwriteService.deletePost(post.$id).then((status) => {
-   if (status) {
-    appwriteService.deleteFile(post.featuredimg);
-    navigate("/");
-   }
-  });
+  if (post) {
+   appwriteService.deletePost(post.$id).then((status) => {
+    if (status) {
+     // Delete the featured image if the post is successfully deleted
+     appwriteService.deleteFile(post.featuredimg);
+     navigate("/"); // Navigate to the homepage
+    }
+   });
+  }
  };
 
  return post ? (

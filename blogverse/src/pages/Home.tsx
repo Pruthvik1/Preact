@@ -2,18 +2,42 @@ import { useEffect, useState } from "react";
 import { Container, PostCard } from "../components";
 import appwriteService from "../appwrite/auth/config";
 
+interface Post {
+ $id: string;
+ title: string;
+ content: string;
+ featuredimg: string;
+}
+
 function Home() {
- const [posts, setPosts] = useState([]);
+ const [posts, setPosts] = useState<Post[]>([]);
 
  useEffect(() => {
-  appwriteService.getPosts().then((posts) => {
-   if (posts) {
-    setPosts(posts);
+  const fetchPosts = async () => {
+   try {
+    const response = await appwriteService.getPosts();
+
+    if (response && Array.isArray(response)) {
+     // Map the PostDocument to Post format if necessary
+     const mappedPosts: Post[] = response.map((postDoc) => ({
+      $id: postDoc.id,
+      title: postDoc.title,
+      content: postDoc.content,
+      featuredimg: postDoc.featuredimg,
+     }));
+     setPosts(mappedPosts);
+    } else {
+     console.error("No posts found or response format is incorrect.");
+    }
+   } catch (error) {
+    console.error("Failed to fetch posts:", error);
    }
-  });
+  };
+
+  fetchPosts();
  }, []);
 
- if (!posts || posts.length === 0) {
+ if (posts.length === 0) {
   return (
    <div className="w-full py-8 mt-4 text-center">
     <Container>
@@ -26,12 +50,14 @@ function Home() {
    </div>
   );
  }
+
  return (
   <div className="w-full py-8">
    <Container>
     <div className="flex flex-wrap">
      {posts.map((post) => (
       <div key={post.$id} className="p-2 w-1/4">
+       {/* Spread the post properties into PostCard */}
        <PostCard {...post} />
       </div>
      ))}

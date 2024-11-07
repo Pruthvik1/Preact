@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { Container, PostCard } from "../components";
 import appwriteService from "../appwrite/auth/config";
-
-// Define the structure of a Post
 interface Post {
  $id: string;
  title: string;
@@ -10,24 +8,23 @@ interface Post {
  featuredimg: string;
 }
 
-interface PostsResponse {
- documents: Post[];
-}
-
 function AllPosts() {
- // Correctly type the posts state as an array of Post objects
  const [posts, setPosts] = useState<Post[]>([]);
 
  useEffect(() => {
-  // Fetch posts when the component mounts
   const fetchPosts = async () => {
    try {
-    // Call the appwriteService and ensure the response is typed properly
     const response = await appwriteService.getPosts();
 
-    // Ensure the response is of the correct shape (PostsResponse)
-    if (response && response) {
-     setPosts(response); // Set the posts correctly
+    if (response && Array.isArray(response)) {
+     // Map the PostDocument to Post format if necessary
+     const mappedPosts: Post[] = response.map((postDoc) => ({
+      $id: postDoc.id,
+      title: postDoc.title,
+      content: postDoc.content,
+      featuredimg: postDoc.featuredimg,
+     }));
+     setPosts(mappedPosts);
     } else {
      console.error("No posts found or response format is incorrect.");
     }
@@ -36,7 +33,7 @@ function AllPosts() {
    }
   };
 
-  fetchPosts(); // Call the function to fetch posts
+  fetchPosts();
  }, []);
 
  return (
